@@ -8,12 +8,6 @@ def main():
   Parse input arguments
   """
   parser = argparse.ArgumentParser(description='Using mailTip pipeline!')
-  parser.add_argument('-t', dest='to_addr',
-                      help='the address you will send to',
-                      type=str)
-  parser.add_argument('-e', dest='from_addr',
-                    help='email message you using',
-                    type=str)
 
   parser.add_argument('-c', action='store_true',
                       default=False,
@@ -22,10 +16,6 @@ def main():
   parser.add_argument('-s',
                       default=False,
                     help='task pipeline name to send')
-
-  parser.add_argument('-m',default='None',
-                      help='manuly',
-                      type=str)
 
   parser.add_argument('--file', 
                       help='file path', 

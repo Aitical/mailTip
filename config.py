@@ -16,6 +16,12 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import html
 from pygments.formatters.html import HtmlFormatter
 
+import requests
+import re
+
+
+
+
 class HighlightRenderer(mistune.Renderer):
     def block_code(self, code, lang):
         if not lang:
@@ -51,7 +57,33 @@ class Config(object):
             assert self._config.get('task', None) is not None
 
         self.encoding = 'utf-8'
+        self.pic_url = True
+        
+    def _get_link(self, file_path):
+        with open(file_path, 'rb') as f:
+            img = f.read()
 
+        files = {
+            'smfile':img
+        }
+
+        req = requests.post(url='https://sm.ms/api/upload', files=files)
+        res = json.loads(req.content)
+        return res['data']['url']
+    
+    def _update_pic_link(self, content):
+        
+        results = re.findall(r"!\[(.+?)\)", content)
+
+        for pic in results:
+            link = pic.split('](')[-1]
+            if link.startswith('http') or link.startswith('https'):
+                continue
+            else:
+                url_link = self._get_link(link)
+                content = re.sub(link, url_link, content)
+
+        return content
 
     def _get_css(self, style='default'):
         formatter = HtmlFormatter(style=style)
@@ -151,7 +183,10 @@ class Config(object):
 
         renderer = HighlightRenderer()
         markdown = mistune.Markdown(renderer=renderer)
+        mdstr = self._update_pic_link(mdstr)
         ret = markdown(mdstr)
+
+
         return html.format(css=css, body=ret)
 
 
