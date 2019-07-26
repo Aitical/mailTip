@@ -30,23 +30,26 @@ class Config(object):
     """
     Basic class 
     """    
-    def __init__(self, comment):
+    def __init__(self,):
         """
         init the module for first time
         """
-        if not path.exists('./config/'):
-            os.mkdir('./config')
-        if not path.exists('./config/mailTip'):
-            os.mkdir('./config/mailTip')
-        self.config_file = './config/mailTip/{}.json'.format(comment)
-        self.comment = comment
+        self.config_file = './config.json'
 
         if not path.exists(self.config_file):
-            self.from_addr, self.username, self.passwd, self.to_addr, self.smtp_host, \
-            self.smtp_port, self.if_ssl, self.ssl_port =  self._create_config()
+            # create empty config file for first time
+            self._config = dict(
+                mail={},
+                task={}
+            )
+            print('Maybe you r start for the first time...')
+            self._create_mail_config()
         else:
-            self.from_addr, self.username, self.passwd, self.to_addr, self.smtp_host, \
-            self.smtp_port, self.if_ssl, self.ssl_port =  self._load()
+            self._config = self._load()
+
+            assert self._config.get('mail', None) is not None
+            assert self._config.get('task', None) is not None
+
         self.encoding = 'utf-8'
 
 
@@ -55,15 +58,14 @@ class Config(object):
         css = formatter.get_style_defs('.highlight')
         return css
 
-    def _create_config(self,):
-
-        print('Init for the first time...')
+    def _create_mail_config(self,):
+        
+        print('Add a new email:...')
         from_addr = input('Using email address:').strip()
-        username = input('Username[email address as default]: ').strip()
+        username = input('Username for quick use[email address as default]: ').strip()
         if username == '':
             username = from_addr
         passwd = getpass('Password: ').strip()
-        to_addr = input('Aim email address: ').strip()
         smtp_host = input('Smtp server address:').strip()
         smtp_port = input('Smtp port: ').strip()
         if_ssl = input('Using SSl?[Y]').strip()
@@ -74,30 +76,55 @@ class Config(object):
         else:
             if_ssl = 'n'
             ssl_port = ''
-
-        config = dict(
+        # update config file
+        self._config['mail'][username] = dict(
             from_addr=from_addr,
             username=username,
             passwd=passwd,
-            to_addr=to_addr,
             smtp_host=smtp_host,
             smtp_port=smtp_port,
             if_ssl=if_ssl,
             ssl_port=ssl_port
             )
-        with open(self.config_file, 'w') as f:
-            json.dump(config, f, ensure_ascii=False)
+        # save directly
+        self._save()
 
-        return list(config.values())
+    def add_email(self):
+        self._create_mail_config()
 
-    def _save(self, dict):
+    def add_task(self,):
+        self._create_task_config()
+
+    def _create_task_config(self,):
+        print('Create a new task pipeline...')
+        task_name = input('Task name:').strip()
         
-        pass
+        if self._config['task'].get(task_name, None) is not None:
+            print('Current task {} is in config!'.format(task_name))
+
+
+        from_addr = input('From email config name(username):').strip()
+        to_addr = input('To email address: ').strip()
+
+        # update config file
+        self._config['task'][task_name] = dict(
+            username=from_addr,
+            to_addr=to_addr,
+            )
+        # save directly
+        self._save()
+
+
+    def _save(self,):
+        
+        with open(self.config_file, 'w') as f:
+            json.dump(self._config, f, ensure_ascii=False)
+
     def _load(self,):
         with open(self.config_file, 'r', encoding='utf-8') as f:
             s = json.load(f)
-        return list(s.values())
-        
+        return s
+    
     def _clean(self):
         """
         Clean cache files
@@ -128,28 +155,34 @@ class Config(object):
         return html.format(css=css, body=ret)
 
 
-class Mail(Config):
+class Task(Config):
     """
     Struct config message for each email address
     """
-    def __init__(self, comment, file_path):
-        super(Mail, self).__init__(comment)
-        
+    def __init__(self, task_name, file_path):
+        super(Task, self).__init__()
+
+        if self._config['task'].get(task_name, None) is None:
+            print('Current task {} is not in config file, create it now...'.format(task_name))
+            self._create_task_config()
+
         self.file_path = file_path
+        self.username = self._config['task'][task_name]['username']
+        self.to_addr = self._config['task'][task_name]['to_addr']
 
-        if self.if_ssl == 'y':
-            self.smtp = smtplib.SMTP_SSL(self.smtp_host, self.ssl_port)
+        if self._config['mail'].get(self.username, None) is None:
+            print('The email {} using now is not in config file, create it now...'.format(self.username))
+            self._create_mail_config()
+
+        self.from_addr = self._config['mail'][self.username]
+        
+        if self.from_addr['if_ssl'] == 'y':
+            self.smtp = smtplib.SMTP_SSL(self.from_addr['smtp_host'], self.from_addr['ssl_port'])
         else:
-            self.smtp = smtplib.SMTP(self.smtp_host, self.smtp_port)
+            self.smtp = smtplib.SMTP(self.from_addr['smtp_host'], self.from_addr['smtp_port'])
 
-    def edit(self):
-        """
-        Edit message
-        """
-
-        pass
     def login(self):
-        self.smtp.login(self.username, self.passwd)
+        self.smtp.login(self.from_addr['from_addr'], self.from_addr['passwd'])
     
     def close(self):
         """
@@ -164,12 +197,12 @@ class Mail(Config):
         content = self._parse(self.file_path)
         mail = MIMEText(content, 'html', self.encoding)
         mail['Subject'] = Header(self.subject, self.encoding)
-        mail['From'] = self.from_addr
+        mail['From'] = self.from_addr['from_addr']
         mail['To'] = self.to_addr
         mail['Date'] = formatdate()
 
         self.login()
-        self.smtp.sendmail(self.from_addr, self.to_addr, mail.as_string())
+        self.smtp.sendmail(self.from_addr['from_addr'], self.to_addr, mail.as_string())
         self.close()
         print('sent!')
 
