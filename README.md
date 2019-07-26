@@ -59,4 +59,3 @@ python mailTip -s hello --file test.md
 直接使用，这样创建一个`hello`任务，按照提示填写自己邮件的配置信息即可。
 
 **注意**配置邮件的username，用于快速选中邮件配置内容填写时请唯一(本地使用username，不影响发送账号信息)。
-
