@@ -26,7 +26,7 @@
 
 - jupyter导出html后也可以一键发送，邮件内看代码！
 
-![1564125213212](/home/aitical/.config/Typora/typora-user-images/1564125213212.png)
+![1564125213212.png](https://i.loli.net/2019/07/26/5d3ab9759faf558435.png)
 
 - 本地图片自动转换图床链接
 
